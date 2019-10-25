@@ -118,8 +118,40 @@ function get_access_token_shortcode( $atts = array(), $content = '' ) {
 			)
 		) );
 
-		var_dump( $response );
-		wp_die();
+		try {
+
+			if ( is_wp_error( $response ) ) {
+				throw new \Exception( sprintf( __( 'Code: %s; Message: %s', 'ng-instagram-access-token' ), $response->get_error_code(), $response->get_error_message() ) );
+			}
+
+			$code = wp_remote_retrieve_response_code( $response );
+
+			if ( 200 !== absint( $code ) ) {
+				throw new \Exception( sprintf( __( 'Invalid response code %s', 'ng-instagram-access-token' ), '<code>' . $code . '</code>' ) );
+			}
+
+			$body = json_decode( wp_remote_retrieve_body( $response ) );
+
+			if ( empty( $body->access_token ) || empty( $body->user_id ) ) {
+				throw new \Exception( __( 'Invalid response data.', 'ng-instagram-access-token' ) );
+			}
+
+			ob_start();
+			?>
+			<p>
+				<label for="ng-instagram-access-token"><?php _e( 'Access Token', 'ng-instagram-access-token' ); ?></label>
+				<input type="text" id="ng-instagram-access-token" readonly="readonly" value="<?php echo esc_attr( $body->access_token ); ?>">
+			</p>
+			<p>
+				<label for="ng-instagram-user-id"><?php _e( 'User ID', 'ng-instagram-access-token' ); ?></label>
+				<input type="text" id="ng-instagram-user-id" readonly="readonly" value="<?php echo esc_attr( $body->user_id ); ?>">
+			</p>
+			<?php
+			return ob_get_clean();
+
+		} catch ( \Exception $e ) {
+			return sprintf( __( 'Error: %s', 'ng-instagram-access-token' ), $e->getMessage() );
+		}
 
 	}
 
